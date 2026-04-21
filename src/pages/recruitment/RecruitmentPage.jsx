@@ -232,6 +232,7 @@ const INTEREST_OPTIONS = [
 ];
 
 const YEAR_OPTIONS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+const SECTION_OPTIONS = ['A', 'B', 'C', 'D', 'E', 'F', 'Other'];
 const COMMIT_OPTIONS = ['Yes', 'No', 'Maybe'];
 
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
@@ -398,6 +399,7 @@ export default function RecruitmentPage({ onBack }) {
     branch: '',
     branchOther: '',
     section: '',
+    sectionOther: '',
 
     role: '',
     interests: [],
@@ -610,16 +612,44 @@ export default function RecruitmentPage({ onBack }) {
                 )}
               </div>
             </Field>
-            <Field label="Section" required>
-              <Input
-                value={form.section}
-                onChange={v => {
-                  const cleaned = v.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 1);
-                  setForm(f => ({ ...f, section: cleaned }));
-                }}
-                placeholder="A / B / C"
-                maxLength={1}
-              />
+            <Field label="Section" required hint="Academic Section (A/B/C/...)">
+              <div style={{ display: 'grid', gap: 8 }}>
+                <select
+                  value={form.section}
+                  onChange={e => setForm(f => ({ ...f, section: e.target.value, sectionOther: '' }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    background: 'var(--card2)',
+                    border: '1px solid var(--bdr2)',
+                    borderRadius: 'var(--r2)',
+                    color: form.section ? 'var(--t1)' : 'var(--t3)',
+                    fontFamily: 'Rajdhani,sans-serif',
+                    fontSize: '.98rem',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300d4ff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 14px center',
+                    paddingRight: '36px',
+                  }}
+                  onFocus={e => { e.target.style.borderColor = 'var(--c1b)'; e.target.style.boxShadow = 'var(--sh1)'; }}
+                  onBlur={e => { e.target.style.borderColor = 'var(--bdr2)'; e.target.style.boxShadow = 'none'; }}
+                >
+                  <option value="" disabled>Select section</option>
+                  {SECTION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+                {form.section === 'Other' && (
+                  <Input
+                    value={form.sectionOther}
+                    onChange={v => setForm(f => ({ ...f, sectionOther: v.toUpperCase() }))}
+                    placeholder="Type your section (e.g. J)"
+                    maxLength={10}
+                  />
+                )}
+              </div>
             </Field>
           </div>
         </div>
@@ -880,6 +910,10 @@ export default function RecruitmentPage({ onBack }) {
         missing.push(k);
       }
     }
+    // Extra manual checks for 'Other' fields
+    if (step === 1 && form.branch === 'Other' && !String(form.branchOther || '').trim()) missing.push('branchOther');
+    if (step === 1 && form.section === 'Other' && !String(form.sectionOther || '').trim()) missing.push('sectionOther');
+
     // Extra validation rules (cannot be bypassed by just typing anything)
     const email = String(form.collegeEmail || '').trim().toLowerCase();
     if (step === 1 && email && !email.endsWith('@glbajajgroup.org')) missing.push('collegeEmail');
@@ -915,6 +949,7 @@ export default function RecruitmentPage({ onBack }) {
         ...form,
         // If 'Other' was selected, use the custom text; otherwise use the selected option
         branch: form.branch === 'Other' ? (form.branchOther || 'Other') : form.branch,
+        section: form.section === 'Other' ? (form.sectionOther || 'Other') : form.section,
         interests: Array.isArray(form.interests) ? form.interests.join(', ') : '',
         declarationAccepted: !!form.declarations?.truth && !!form.declarations?.time && !!form.declarations?.participate && !form.declarations?.disagree,
         declarationSelected: Object.entries(form.declarations || {}).filter(([,v])=>!!v).map(([k])=>k).join(', '),
@@ -1196,10 +1231,33 @@ export default function RecruitmentPage({ onBack }) {
                 textAlign: 'center',
               }}>
                 <div style={{ fontSize: '1.4rem', marginBottom: 10 }}>⚠️</div>
-                <div style={{ color: 'var(--t1)', fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Application Already Submitted</div>
-                <div style={{ color: 'var(--t2)', fontSize: '.92rem', lineHeight: 1.7 }}>
-                  An application has already been submitted from this device. Each candidate may apply only once.
-                  <br/>If you believe this is an error, please contact us directly.
+                <div style={{ color: 'var(--t1)', fontWeight: 700, fontSize: '1rem', marginBottom: 12 }}>Application Already Submitted</div>
+                <div style={{ color: 'var(--t2)', fontSize: '.88rem', lineHeight: 1.65, marginBottom: 24 }}>
+                  An application form has already been submitted from this device.<br/>
+                  If you believe this is an error, please <strong>contact NexaSphere team directly</strong>.
+                </div>
+
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <a
+                    href={WHATSAPP_SCREENING}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-whatsapp"
+                    style={{ flex: 1, minWidth: 220, justifyContent: 'center' }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      Core Team Screening Room <IconArrowRight />
+                    </span>
+                  </a>
+                  <a
+                    href={LINKEDIN_PAGE || 'https://www.linkedin.com/showcase/glbajaj-nexasphere/'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline"
+                    style={{ flex: 1, minWidth: 220, justifyContent: 'center' }}
+                  >
+                    NexaSphere LinkedIn
+                  </a>
                 </div>
               </div>
             ) : done ? (

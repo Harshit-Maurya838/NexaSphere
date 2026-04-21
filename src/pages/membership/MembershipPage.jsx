@@ -15,7 +15,7 @@ const BRANCH_OPTIONS  = [
   'MBA',
   'Other',
 ];
-const SECTION_OPTIONS  = ['A', 'B', 'C', 'D', 'E', 'F'];
+const SECTION_OPTIONS  = ['A', 'B', 'C', 'D', 'E', 'F', 'Other'];
 const SEMESTER_OPTIONS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const GROUP_OPTIONS    = [
   'NexaSphere Cybersecurity',
@@ -227,6 +227,7 @@ export default function MembershipPage({ onBack }) {
     branch:       '',
     branchOther:  '',
     section:      '',
+    sectionOther: '',
     semester:     '',
     whatsapp:     '',
     // Section 2
@@ -249,6 +250,7 @@ export default function MembershipPage({ onBack }) {
       if (!form.branch)              missing.push('branch');
       if (form.branch === 'Other' && !form.branchOther.trim()) missing.push('branchOther');
       if (!form.section)             missing.push('section');
+      if (form.section === 'Other' && !form.sectionOther.trim()) missing.push('sectionOther');
       if (!form.semester)            missing.push('semester');
       const phone = String(form.whatsapp || '').trim();
       if (!phone || !/^\d{10}$/.test(phone)) missing.push('whatsapp');
@@ -290,7 +292,7 @@ export default function MembershipPage({ onBack }) {
         rollNumber:   form.rollNumber.trim(),
         course:       form.course === 'Other' ? (form.courseOther.trim() || 'Other') : form.course,
         branch:       form.branch === 'Other' ? (form.branchOther.trim() || 'Other') : form.branch,
-        section:      form.section,
+        section:      form.section === 'Other' ? form.sectionOther : form.section,
         semester:     form.semester,
         whatsapp:     form.whatsapp,
         groups:       form.groups.join(', '),
@@ -525,10 +527,19 @@ export default function MembershipPage({ onBack }) {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <Field label="Section" required>
-              <StyledSelect value={form.section} onChange={v => set('section', v)} placeholder="Select section">
-                {SECTION_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+            <Field label="Section" required hint="Academic Section (A/B/C/...)">
+              <StyledSelect value={form.section} onChange={v => set('section', v)} placeholder="-- Select Section --">
+                {SECTION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
               </StyledSelect>
+              {form.section === 'Other' && (
+                <div style={{ marginTop: 10 }}>
+                  <Input
+                    value={form.sectionOther}
+                    onChange={v => set('sectionOther', v)}
+                    placeholder="Type your section manually..."
+                  />
+                </div>
+              )}
             </Field>
 
             <Field label="Semester" required>
@@ -748,12 +759,33 @@ export default function MembershipPage({ onBack }) {
                 borderRadius:'var(--r3)', padding:'20px 22px', textAlign:'center',
               }}>
                 <div style={{ fontSize:'1.4rem', marginBottom:10 }}>⚠️</div>
-                <div style={{ color:'var(--t1)', fontWeight:700, fontSize:'1rem', marginBottom:8 }}>
+                <div style={{ color:'var(--t1)', fontSize:'.98rem', fontWeight:600, marginBottom:16 }}>
                   Membership Form Already Submitted
                 </div>
-                <div style={{ color:'var(--t2)', fontSize:'.92rem', lineHeight:1.7 }}>
+                <div style={{ color:'var(--t2)', fontSize:'.88rem', lineHeight:1.6, marginBottom:24 }}>
                   A membership form has already been submitted from this device.<br/>
-                  If you believe this is an error, please contact us directly.
+                  If you believe this is an error, please <strong>contact NexaSphere team directly</strong>.
+                </div>
+
+                <div style={{ display:'flex', gap:12, flexWrap:'wrap', justifyContent:'center' }}>
+                  <a
+                    href={WHATSAPP_COMMUNITY}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary"
+                    style={{ flex:1, minWidth:200, justifyContent:'center' }}
+                  >
+                    Join WhatsApp Community
+                  </a>
+                  <a
+                    href={LINKEDIN_PAGE}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-outline"
+                    style={{ flex:1, minWidth:200, justifyContent:'center' }}
+                  >
+                    NexaSphere LinkedIn
+                  </a>
                 </div>
               </div>
             ) : done ? (
