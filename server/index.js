@@ -815,6 +815,42 @@ const formRateLimiter = rateLimit({
   message: { error: 'Too many form submissions from this IP, please try again after 10 minutes' }
 });
 
+const portfolioRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: { error: 'Too many portfolio update attempts from this IP, please try again after 15 minutes' }
+});
+
+const failedPasskeyAttempts = new Map();
+
+function checkPasskeyLockout(username, ip) {
+  const key = `${String(username || '').toLowerCase()}:${ip}`;
+  const entry = failedPasskeyAttempts.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.lockoutUntil) {
+    failedPasskeyAttempts.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function recordFailedPasskeyAttempt(username, ip) {
+  const key = `${String(username || '').toLowerCase()}:${ip}`;
+  const entry = failedPasskeyAttempts.get(key) || { count: 0, lockoutUntil: 0 };
+  entry.count += 1;
+  if (entry.count >= 5) {
+    entry.lockoutUntil = Date.now() + 15 * 60 * 1000; // 15 min lockout
+    entry.count = 0;
+  }
+  failedPasskeyAttempts.set(key, entry);
+  return entry;
+}
+
+function clearPasskeyAttempts(username, ip) {
+  const key = `${String(username || '').toLowerCase()}:${ip}`;
+  failedPasskeyAttempts.delete(key);
+}
+
 app.post('/api/forms/membership', formRateLimiter, (req, res) => handleForm('membership', req, res));
 app.post('/api/forms/recruitment', formRateLimiter, (req, res) => handleForm('recruitment', req, res));
 app.post('/api/core-team/apply', formRateLimiter, (req, res) => handleForm('core_team', req, res));
@@ -933,11 +969,12 @@ app.get('/api/portfolio/:username', async (req, res) => {
   }
 });
 
-app.put('/api/portfolio', async (req, res) => {
+app.put('/api/portfolio', portfolioRateLimiter, async (req, res) => {
   try {
     const body = req.body || {};
     const username = String(body.username || '').trim();
     const passkey = String(body.passkey || '').trim();
+    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
 
     if (!username || username.length < 3) {
       return res.status(400).json({ error: 'Username must be at least 3 characters long' });
@@ -945,15 +982,24 @@ app.put('/api/portfolio', async (req, res) => {
     if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
       return res.status(400).json({ error: 'Username can only contain alphanumeric characters, underscores, and hyphens' });
     }
-    if (!passkey || passkey.length < 4) {
-      return res.status(400).json({ error: 'Passkey must be at least 4 characters long' });
+    if (!passkey || passkey.length < 12) {
+      return res.status(400).json({ error: 'Passkey must be at least 12 characters long' });
+    }
+
+    // Check lockout before verifying
+    const lockout = checkPasskeyLockout(username, ip);
+    if (lockout) {
+      return res.status(429).json({ error: 'Too many failed passkey attempts. Please try again later.' });
     }
 
     // Verify ownership/passkey
     const isAuthorized = await portfolioRepository.verifyPasskey(username, passkey);
     if (!isAuthorized) {
+      recordFailedPasskeyAttempt(username, ip);
       return res.status(401).json({ error: 'Incorrect passkey for this username' });
     }
+
+    clearPasskeyAttempts(username, ip);
 
     // Save portfolio configuration
     const saved = await portfolioRepository.createOrUpdate(body);
